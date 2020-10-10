@@ -20,6 +20,24 @@ package org.jitsi.jibri.util
 import org.jitsi.xmpp.extensions.jibri.JibriIq
 import org.jitsi.jibri.CallUrlInfo
 import org.jxmpp.jid.EntityBareJid
+import java.io.File
+
+
+fun getPort(domain: String): String {
+    var portNumber = ""
+    val fileName = "/etc/jitsi/meet/$domain-config.js"
+    val fileObject = File(fileName)
+  
+    if (fileObject.exists()) {
+        val regex = Regex("$domain(.*?)/http-bind")
+        val content = fileObject.readText()
+        val matches = regex.findAll(content)
+        portNumber = matches.map { it.groupValues[1] }.joinToString()
+    }
+  
+    return portNumber
+}
+
 
 /**
  * When we get a start [JibriIq] message, the room is given to us an [EntityBareJid] that we need to translate
@@ -39,9 +57,10 @@ fun getCallUrlInfoFromJid(roomJid: EntityBareJid, stripFromRoomDomain: String, x
         val subdomain = domain.subSequence(0, domain.indexOf(xmppDomain, ignoreCase = true)).trim('.')
         // Now just grab the call name
         val callName = roomJid.localpart.toString()
+        val portNumber = getPort(xmppDomain)
         return when {
-            subdomain.isEmpty() -> CallUrlInfo("https://$xmppDomain", callName)
-            else -> CallUrlInfo("https://$xmppDomain/$subdomain", callName)
+            subdomain.isEmpty() -> CallUrlInfo("https://$xmppDomain$portNumber", callName)
+            else -> CallUrlInfo("https://$xmppDomain$portNumber/$subdomain", callName)
         }
     } catch (e: Exception) {
         throw CallUrlInfoFromJidException(
